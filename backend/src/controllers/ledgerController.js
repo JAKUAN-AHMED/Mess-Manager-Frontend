@@ -34,7 +34,7 @@ exports.getContacts = async (req, res) => {
 
     // Calculate balances for all contacts
     const POSITIVE_TYPES = ['lent', 'paid_back', 'gave'];
-    
+
     // For owned contacts - use owner's transactions
     const ownedAgg = await LedgerTransaction.aggregate([
       { $match: { owner: req.user._id } },
@@ -49,8 +49,12 @@ exports.getContacts = async (req, res) => {
         },
       },
     ]);
+
+    // For shared contacts - calculate balance from shared user's perspective
+    // The owner's "lent" means the shared user "borrowed" (opposite view)
+    const NEGATIVE_TYPES_FOR_SHARED = ['lent', 'paid_back', 'gave']; // owner's positive = shared user's negative
+    const POSITIVE_TYPES_FOR_SHARED = ['borrowed', 'received_back', 'received']; // owner's negative = shared user's positive
     
-    // For shared contacts - need to calculate based on the original owner
     const sharedContactIds = sharedContactsRaw.map(s => s.contact._id);
     const sharedAgg = sharedContactIds.length > 0 ? await LedgerTransaction.aggregate([
       { $match: { contact: { $in: sharedContactIds } } },
@@ -59,7 +63,12 @@ exports.getContacts = async (req, res) => {
           _id: '$contact',
           balance: {
             $sum: {
-              $cond: [{ $in: ['$type', POSITIVE_TYPES] }, '$amount', { $multiply: ['$amount', -1] }],
+              // For shared users, flip the logic: owner's lent = shared user's borrowed (negative)
+              $cond: [
+                { $in: ['$type', POSITIVE_TYPES_FOR_SHARED] }, 
+                '$amount', 
+                { $multiply: ['$amount', -1] }
+              ],
             },
           },
         },
@@ -152,19 +161,40 @@ exports.getTransactions = async (req, res) => {
     // Check if user has access to this contact (owner or shared)
     const contact = await LedgerContact.findOne({ _id: req.params.id });
     if (!contact) return res.status(404).json({ success: false, error: 'পাওয়া যায়নি' });
-    
+
     const isOwner = contact.owner.toString() === req.user._id.toString();
     const hasAccess = isOwner || (contact.sharedWith && contact.sharedWith.some(id => id.toString() === req.user._id.toString()));
-    
+
     if (!hasAccess) {
       return res.status(403).json({ success: false, error: 'অ্যাক্সেস নেই' });
     }
-    
+
     const txns = await LedgerTransaction.find({
       contact: req.params.id,
     }).sort({ date: 1, createdAt: 1 });
-    
-    res.json({ success: true, data: txns });
+
+    // For shared users, flip transaction types to show from their perspective
+    const TYPE_FLIP = {
+      lent: 'borrowed',
+      borrowed: 'lent',
+      paid_back: 'received_back',
+      received_back: 'paid_back',
+      gave: 'received',
+      received: 'gave',
+    };
+
+    const transformedTxns = txns.map(t => {
+      const txnObj = t.toObject();
+      if (!isOwner) {
+        txnObj.type = TYPE_FLIP[txnObj.type] || txnObj.type;
+        txnObj.isFromOwnerPerspective = false;
+      } else {
+        txnObj.isFromOwnerPerspective = true;
+      }
+      return txnObj;
+    });
+
+    res.json({ success: true, data: transformedTxns });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
