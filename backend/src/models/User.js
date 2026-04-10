@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   joinDate: { type: Date, default: Date.now },
   isActive: { type: Boolean, default: true },
   advancedPayment: { type: Number, default: 0 },
+  memberCode: { type: String, unique: true, sparse: true },
   mess: { type: mongoose.Schema.Types.ObjectId, ref: 'Mess' },
 }, { timestamps: true });
 

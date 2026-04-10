@@ -1,6 +1,22 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
+function generateMemberCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars (0/O, 1/I/L)
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function uniqueMemberCode() {
+  let code, exists = true;
+  while (exists) {
+    code = generateMemberCode();
+    exists = await User.findOne({ memberCode: code });
+  }
+  return code;
+}
+
 // GET /api/users
 exports.getUsers = async (req, res) => {
   try {
@@ -29,6 +45,7 @@ exports.createUser = async (req, res) => {
     if (exists)
       return res.status(400).json({ success: false, error: 'এই ফোন নম্বরে অ্যাকাউন্ট আছে' });
 
+    const memberCode = role === 'member' ? await uniqueMemberCode() : undefined;
     const user = await User.create({
       name,
       phone,
@@ -36,6 +53,7 @@ exports.createUser = async (req, res) => {
       role,
       roomNumber,
       canInputMeals,
+      memberCode,
       mess: req.user.mess,
     });
     const { password: _, ...userObj } = user.toObject();
@@ -55,6 +73,20 @@ exports.updateUser = async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ success: false, error: 'সদস্য পাওয়া যায়নি' });
     res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/users/:id/regenerate-code — admin regenerates a member's login code
+exports.regenerateMemberCode = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, error: 'সদস্য পাওয়া যায়নি' });
+    const memberCode = await uniqueMemberCode();
+    user.memberCode = memberCode;
+    await user.save({ validateBeforeSave: false });
+    res.json({ success: true, data: { memberCode } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -579,28 +579,49 @@ export function Meals() {
   const getDS    = day => `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 
   const mealsByDate = useMemo(() => {
-    const map = {};
-    meals.forEach(ml => {
-      const d   = new Date(ml.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      if (!map[key]) map[key] = [];
-      map[key].push(ml);
-    });
-    return map;
-  }, [meals]);
-
-  const memberTotals = useMemo(() => {
-    const map = {};
+    const activeIds = new Set(members.map(m => m._id));
+    // Use nested map: date → userId → meal (keeps only latest per user per day)
+    const byDateUser = {};
     meals.forEach(ml => {
       const uid = ml.user?._id || ml.user;
-      if (!map[uid]) map[uid] = { b: 0, l: 0, d: 0, total: 0 };
-      map[uid].b     += ml.breakfast  || 0;
-      map[uid].l     += ml.lunch      || 0;
-      map[uid].d     += ml.dinner     || 0;
-      map[uid].total += ml.totalMeals || 0;
+      if (!activeIds.has(uid)) return;
+      const d   = new Date(ml.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (!byDateUser[key]) byDateUser[key] = {};
+      // Keep the most recently updated entry when duplicates exist
+      const prev = byDateUser[key][uid];
+      if (!prev || new Date(ml.updatedAt) >= new Date(prev.updatedAt)) {
+        byDateUser[key][uid] = ml;
+      }
+    });
+    // Flatten to date → array
+    const map = {};
+    for (const [date, userMap] of Object.entries(byDateUser)) {
+      map[date] = Object.values(userMap);
+    }
+    return map;
+  }, [meals, members]);
+
+  // Both memberTotals and rawTotal are derived from deduplicated mealsByDate
+  const memberTotals = useMemo(() => {
+    const map = {};
+    Object.values(mealsByDate).forEach(dayEntries => {
+      dayEntries.forEach(ml => {
+        const uid = ml.user?._id || ml.user;
+        if (!map[uid]) map[uid] = { b: 0, l: 0, d: 0, total: 0 };
+        map[uid].b     += ml.breakfast  || 0;
+        map[uid].l     += ml.lunch      || 0;
+        map[uid].d     += ml.dinner     || 0;
+        map[uid].total += ml.totalMeals || 0;
+      });
     });
     return map;
-  }, [meals]);
+  }, [mealsByDate]);
+
+  // Deduplicated sub-totals from memberTotals (not raw meals array)
+  const totalBreakfast = useMemo(() => Object.values(memberTotals).reduce((s, m) => s + m.b, 0), [memberTotals]);
+  const totalLunch     = useMemo(() => Object.values(memberTotals).reduce((s, m) => s + m.l, 0), [memberTotals]);
+  const totalDinner    = useMemo(() => Object.values(memberTotals).reduce((s, m) => s + m.d, 0), [memberTotals]);
 
   const adjByMember = useMemo(() => {
     const map = {};
@@ -612,7 +633,10 @@ export function Meals() {
     return map;
   }, [adjustments]);
 
-  const rawTotal   = meals.reduce((s, m) => s + (m.totalMeals || 0), 0);
+  const rawTotal   = useMemo(() =>
+    Object.values(mealsByDate).reduce((s, dayEntries) =>
+      s + dayEntries.reduce((ds, m) => ds + (m.totalMeals || 0), 0), 0
+    ), [mealsByDate]);
   const totalAdj   = adjustments.reduce((s, a) => s + a.amount, 0);
   const totalMeals = Math.max(0, rawTotal + totalAdj);
 
@@ -856,10 +880,10 @@ export function Meals() {
                 </div>
                 <div className="space-y-2.5">
                   {[
-                    { label: 'মোট মিল',    val: totalMeals, Icon: Utensils, color: '#7c3aed' },
-                    { label: 'সকালের মিল', val: meals.reduce((s,m) => s+(m.breakfast||0), 0), Icon: Sun,     color: '#f59e0b' },
-                    { label: 'দুপুরের মিল',val: meals.reduce((s,m) => s+(m.lunch||0),    0), Icon: Utensils, color: '#16a34a' },
-                    { label: 'রাতের মিল',  val: meals.reduce((s,m) => s+(m.dinner||0),   0), Icon: Moon,     color: '#4338ca' },
+                    { label: 'মোট মিল',    val: totalMeals,    Icon: Utensils, color: '#7c3aed' },
+                    { label: 'সকালের মিল', val: totalBreakfast, Icon: Sun,      color: '#f59e0b' },
+                    { label: 'দুপুরের মিল', val: totalLunch,    Icon: Utensils, color: '#16a34a' },
+                    { label: 'রাতের মিল',  val: totalDinner,   Icon: Moon,     color: '#4338ca' },
                   ].map(({ label, val, Icon, color }) => (
                     <div key={label} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: color + '18' }}>

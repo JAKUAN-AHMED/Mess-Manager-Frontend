@@ -10,7 +10,7 @@ const getMessUserIds = async (messId) => {
       { $set: { mess: messId } }
     );
   }
-  return User.find({ mess: messId }).distinct('_id');
+  return User.find({ mess: messId, isActive: true }).distinct('_id');
 };
 
 // GET /api/reports/monthly-summary?month=M&year=Y

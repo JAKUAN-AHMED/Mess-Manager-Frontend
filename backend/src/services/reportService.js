@@ -15,6 +15,8 @@ const getMonthlySummary = async (startDate, endDate, userIds) => {
     ]),
     Meal.aggregate([
       { $match: { date: { $gte: startDate, $lte: endDate }, user: { $in: userIds } } },
+      { $sort: { updatedAt: -1 } },
+      { $group: { _id: { user: '$user', day: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: '+06:00' } } }, totalMeals: { $first: '$totalMeals' } } },
       { $group: { _id: null, totalMeals: { $sum: '$totalMeals' } } },
     ]),
     MealAdjustment.aggregate([
@@ -38,13 +40,10 @@ const getUserMonthlyBill = async (userId, startDate, endDate, mealRate) => {
 
   const [userMeals, adjResult] = await Promise.all([
     Meal.aggregate([
-      {
-        $match: {
-          user: new mongoose.Types.ObjectId(userId),
-          date: { $gte: startDate, $lte: endDate },
-        },
-      },
-      { $group: { _id: '$user', totalMeals: { $sum: '$totalMeals' } } },
+      { $match: { user: new mongoose.Types.ObjectId(userId), date: { $gte: startDate, $lte: endDate } } },
+      { $sort: { updatedAt: -1 } },
+      { $group: { _id: { day: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } }, totalMeals: { $first: '$totalMeals' } } },
+      { $group: { _id: null, totalMeals: { $sum: '$totalMeals' } } },
     ]),
     MealAdjustment.aggregate([
       { $match: { user: new mongoose.Types.ObjectId(userId), month, year } },
@@ -77,12 +76,9 @@ const getYearlyMealTrend = async (userIds) => {
 
   const result = await Meal.aggregate([
     { $match: { date: { $gte: startOfYear }, user: { $in: userIds } } },
-    {
-      $group: {
-        _id: { month: { $month: '$date' } },
-        totalMeals: { $sum: '$totalMeals' },
-      },
-    },
+    { $sort: { updatedAt: -1 } },
+    { $group: { _id: { user: '$user', day: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: '+06:00' } } }, totalMeals: { $first: '$totalMeals' }, month: { $first: { $month: { date: '$date', timezone: '+06:00' } } } } },
+    { $group: { _id: { month: '$month' }, totalMeals: { $sum: '$totalMeals' } } },
     { $sort: { '_id.month': 1 } },
   ]);
 

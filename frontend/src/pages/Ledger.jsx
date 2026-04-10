@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowUpRight, ArrowDownLeft, Plus, Trash2, X, ChevronRight,
   Users, Wallet, TrendingUp, TrendingDown, Edit2, Check, Phone,
-  ArrowLeft, Calendar, FileText, Handshake, RefreshCw,
+  ArrowLeft, Calendar, FileText, Handshake, RefreshCw, Share2,
 } from 'lucide-react';
 import api from '../services/api';
+import ShareModal from '../components/ShareModal';
 
 const fmt = (n) => parseFloat(Math.abs(n).toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
@@ -499,7 +500,7 @@ function EditTransactionModal({ txn, contact, onClose, onSave }) {
 }
 
 /* ── Contact Detail Panel ─────────────────────────────── */
-function ContactDetail({ contact, onBack, onRefresh }) {
+function ContactDetail({ contact, onBack, onRefresh, onShare }) {
   const [txns, setTxns]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -554,18 +555,37 @@ function ContactDetail({ contact, onBack, onRefresh }) {
         <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-700 transition-colors lg:hidden">
           <ArrowLeft size={18} />
         </button>
-        <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shrink-0"
+        <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shrink-0 relative"
           style={{ background: balance > 0 ? 'linear-gradient(135deg,#f43f5e,#fb923c)' : balance < 0 ? 'linear-gradient(135deg,#7c3aed,#6366f1)' : 'linear-gradient(135deg,#94a3b8,#64748b)' }}>
           {contact.name.charAt(0)}
+          {!contact.isOwner && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
+              <Share2 size={8} className="text-white" />
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 text-base truncate">{contact.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-gray-900 text-base truncate">{contact.name}</p>
+            {!contact.isOwner && (
+              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-medium shrink-0">
+                শেয়ার্ড
+              </span>
+            )}
+          </div>
           {contact.phone && <p className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} /> {contact.phone}</p>}
           {contact.note  && <p className="text-xs text-gray-400 italic">{contact.note}</p>}
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary text-sm flex items-center gap-1.5 px-4 py-2">
-          <Plus size={15} /> লেনদেন
-        </button>
+        {contact.isOwner && onShare && (
+          <button onClick={onShare} className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-colors" title="শেয়ার করুন">
+            <Share2 size={16} />
+          </button>
+        )}
+        {contact.isOwner && (
+          <button onClick={() => setShowAdd(true)} className="btn-primary text-sm flex items-center gap-1.5 px-4 py-2">
+            <Plus size={15} /> লেনদেন
+          </button>
+        )}
       </div>
 
       {/* Net balance banner */}
@@ -687,6 +707,7 @@ export function Ledger() {
   const [loading, setLoading]     = useState(true);
   const [selected, setSelected]   = useState(null);
   const [contactModal, setContactModal] = useState(null); // null | 'add' | contact obj
+  const [shareModal, setShareModal] = useState(null); // null | contact obj
 
   const loadContacts = async () => {
     setLoading(true);
@@ -744,6 +765,13 @@ export function Ledger() {
           contact={contactModal === 'add' ? null : contactModal}
           onClose={() => setContactModal(null)}
           onSave={handleSaveContact}
+        />
+      )}
+      {shareModal && (
+        <ShareModal
+          contactId={shareModal._id}
+          contactName={shareModal.name}
+          onClose={() => setShareModal(null)}
         />
       )}
 
@@ -826,12 +854,24 @@ export function Ledger() {
                     isSelected ? 'border-brand-400 shadow-lg shadow-brand-100' : 'border-transparent hover:border-gray-200'
                   }`}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 relative"
                       style={{ background: contact.balance > 0 ? 'linear-gradient(135deg, #f43f5e, #fb923c)' : contact.balance < 0 ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #94a3b8, #64748b)' }}>
                       {contact.name.charAt(0)}
+                      {!contact.isOwner && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <Share2 size={8} className="text-white" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{contact.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{contact.name}</p>
+                        {!contact.isOwner && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-medium shrink-0">
+                            শেয়ার্ড
+                          </span>
+                        )}
+                      </div>
                       {contact.phone && (
                         <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <Phone size={9} /> {contact.phone}
@@ -857,14 +897,22 @@ export function Ledger() {
                   {/* Actions */}
                   <div className="flex gap-1 mt-2.5 pt-2.5 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setContactModal(contact)}
-                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors font-medium">
-                      <Edit2 size={10} /> সম্পাদনা
-                    </button>
-                    <button onClick={() => handleDeleteContact(contact)}
-                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors font-medium ml-auto">
-                      <Trash2 size={10} /> মুছুন
-                    </button>
+                    {contact.isOwner && (
+                      <>
+                        <button onClick={() => setContactModal(contact)}
+                          className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors font-medium">
+                          <Edit2 size={10} /> সম্পাদনা
+                        </button>
+                        <button onClick={() => handleDeleteContact(contact)}
+                          className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors font-medium ml-auto">
+                          <Trash2 size={10} /> মুছুন
+                        </button>
+                        <button onClick={() => setShareModal(contact)}
+                          className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors font-medium">
+                          <Share2 size={10} /> শেয়ার
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -880,6 +928,7 @@ export function Ledger() {
                 contact={selected}
                 onBack={() => setSelected(null)}
                 onRefresh={loadContacts}
+                onShare={() => setShareModal(selected)}
               />
             </div>
           ) : (

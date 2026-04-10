@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Plus, Edit2, ToggleLeft, ToggleRight, X, Check, Trash2, Crown } from 'lucide-react';
+import { Users, Plus, Edit2, ToggleLeft, ToggleRight, X, Check, Trash2, Crown, Copy, RefreshCw, KeyRound } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -158,6 +158,8 @@ export function Members() {
   const [modal, setModal]               = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [transferTarget, setTransferTarget] = useState(null);
+  const [copiedId, setCopiedId]         = useState(null);
+  const [regenId, setRegenId]           = useState(null);
 
   const fetchMembers = async () => {
     try {
@@ -183,6 +185,22 @@ export function Members() {
   const handleDelete = async (member) => {
     await api.delete(`/users/${member._id}`);
     fetchMembers();
+  };
+
+  const handleCopyCode = (member) => {
+    if (!member.memberCode) return;
+    navigator.clipboard.writeText(member.memberCode);
+    setCopiedId(member._id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleRegenCode = async (member) => {
+    setRegenId(member._id);
+    try {
+      const res = await api.post(`/users/${member._id}/regenerate-code`);
+      setMembers(prev => prev.map(m => m._id === member._id ? { ...m, memberCode: res.data.data.memberCode } : m));
+    } catch (err) { console.error(err); }
+    finally { setRegenId(null); }
   };
 
   const handleTransferAdmin = async (member) => {
@@ -329,6 +347,32 @@ export function Members() {
                     )}
                   </div>
 
+                  {/* Member code */}
+                  {isAdmin && member.role === 'member' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <KeyRound size={9} /> লগইন কোড
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black tracking-[0.2em] text-brand-700 text-sm bg-brand-50 px-3 py-1.5 rounded-lg border border-brand-100">
+                          {member.memberCode || '—'}
+                        </span>
+                        {member.memberCode && (
+                          <button onClick={() => handleCopyCode(member)}
+                            className="p-1.5 hover:bg-brand-50 rounded-lg text-gray-400 hover:text-brand-600 transition-all"
+                            title="কপি করুন">
+                            {copiedId === member._id ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
+                          </button>
+                        )}
+                        <button onClick={() => handleRegenCode(member)} disabled={regenId === member._id}
+                          className="p-1.5 hover:bg-amber-50 rounded-lg text-gray-400 hover:text-amber-500 transition-all"
+                          title="নতুন কোড তৈরি করুন">
+                          <RefreshCw size={13} className={regenId === member._id ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Toggle active */}
                   {isAdmin && (
                     <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
@@ -361,6 +405,7 @@ export function Members() {
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ভূমিকা</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">মিল</th>
                     <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">অগ্রিম জমা</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">লগইন কোড</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">অবস্থা</th>
                     {isAdmin && <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">কার্যক্রম</th>}
                   </tr>
@@ -391,6 +436,25 @@ export function Members() {
                           {member.advancedPayment > 0
                             ? <span className="text-blue-600 font-semibold text-sm">৳ {member.advancedPayment.toLocaleString()}</span>
                             : <span className="text-gray-300 text-sm">—</span>}
+                        </td>
+                        <td className="px-6 py-4">
+                          {member.role === 'member' && isAdmin ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black tracking-[0.15em] text-brand-700 text-xs bg-brand-50 px-2.5 py-1 rounded-lg border border-brand-100">
+                                {member.memberCode || '—'}
+                              </span>
+                              {member.memberCode && (
+                                <button onClick={() => handleCopyCode(member)}
+                                  className="p-1 hover:bg-brand-50 rounded text-gray-300 hover:text-brand-600 transition-all">
+                                  {copiedId === member._id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                </button>
+                              )}
+                              <button onClick={() => handleRegenCode(member)} disabled={regenId === member._id}
+                                className="p-1 hover:bg-amber-50 rounded text-gray-300 hover:text-amber-500 transition-all">
+                                <RefreshCw size={12} className={regenId === member._id ? 'animate-spin' : ''} />
+                              </button>
+                            </div>
+                          ) : <span className="text-gray-300 text-sm">—</span>}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`badge ${member.isActive ? 'badge-green' : 'badge-red'}`}>

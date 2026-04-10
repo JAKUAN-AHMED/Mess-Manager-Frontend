@@ -39,6 +39,15 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
+  const memberLogin = async (memberCode) => {
+    const res = await api.post('/auth/member-login', { memberCode });
+    const { token, ...userData } = res.data.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    return userData;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -51,7 +60,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, updateCurrentUser }}>
+    <AuthContext.Provider value={{ user, login, memberLogin, logout, loading, updateCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );
