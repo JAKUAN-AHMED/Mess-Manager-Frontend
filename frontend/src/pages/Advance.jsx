@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X, Trash2, Plus, Wallet2 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -130,7 +130,7 @@ export function Advance() {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [advRes, memRes] = await Promise.all([
@@ -144,9 +144,9 @@ export function Advance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
 
-  useEffect(() => { fetchData(); }, [month, year]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleDelete = async (id) => {
     try {

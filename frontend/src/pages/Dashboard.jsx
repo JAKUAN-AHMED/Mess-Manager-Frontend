@@ -57,8 +57,9 @@ export function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const d = new Date();
         const [summaryRes, trendRes, membersRes, messRes] = await Promise.all([
-          api.get(`/reports/monthly-summary?month=${now.getMonth() + 1}&year=${now.getFullYear()}`),
+          api.get(`/reports/monthly-summary?month=${d.getMonth() + 1}&year=${d.getFullYear()}`),
           api.get('/reports/yearly-trend'),
           api.get('/users'),
           api.get('/mess'),

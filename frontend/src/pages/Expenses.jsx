@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Receipt, Plus, Trash2, X, ChevronLeft, ChevronRight, PackagePlus, Pencil } from 'lucide-react';
 import api from '../services/api';
@@ -275,7 +275,7 @@ export function Expenses() {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/expenses?month=${month}&year=${year}`);
@@ -285,9 +285,9 @@ export function Expenses() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
 
-  useEffect(() => { fetchExpenses(); }, [month, year]);
+  useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
 
   const handleSave = async (data, id) => {
     if (id) {

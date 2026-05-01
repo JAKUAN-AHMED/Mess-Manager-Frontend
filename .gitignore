@@ -17,3 +17,5 @@ yarn-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+.vercel

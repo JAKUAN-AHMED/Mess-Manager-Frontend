@@ -8,8 +8,10 @@ const {
   shareContact, unshareContact, getSharedUsers, getSharedWithMe, searchUsers,
 } = require('../controllers/ledgerShareController');
 const { protect } = require('../middlewares/auth');
+const requireMess = require('../middlewares/requireMess');
 
 router.use(protect);
+router.use(requireMess);
 
 // Contacts
 router.get('/contacts',                   getContacts);

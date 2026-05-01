@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, CheckCircle, Utensils, TrendingUp,
   X, Save, Users, Sun, Moon, BarChart3, CalendarDays,
@@ -45,24 +45,28 @@ function MealInput({ value, onChange, color }) {
 
 /* ── Day Detail Panel (single date) ────────────── */
 function DayDetailPanel({ date, members, mealsByDate, onRefresh, onClear }) {
-  const dayMeals = mealsByDate[date] || [];
+  const dayMeals = useMemo(() => mealsByDate[date] || [], [mealsByDate, date]);
   const d        = new Date(date + 'T00:00:00');
   const dayLabel = `${d.getDate()} ${MONTHS_BN[d.getMonth()]}`;
 
-  const initRows = () => members.map(m => {
-    const entry = dayMeals.find(ml => (ml.user?._id || ml.user) === m._id);
-    return {
-      memberId: m._id,
-      name:     m.name,
-      entryId:  entry?._id   ?? null,
-      b:        entry?.breakfast ?? 0,
-      l:        entry?.lunch     ?? 0,
-      d:        entry?.dinner    ?? 0,
-      saving:   false,
-      deleting: false,
-      saved:    false,
-    };
-  });
+  const initRows = useCallback(
+    () =>
+      members.map((m) => {
+        const entry = dayMeals.find((ml) => (ml.user?._id || ml.user) === m._id);
+        return {
+          memberId: m._id,
+          name: m.name,
+          entryId: entry?._id ?? null,
+          b: entry?.breakfast ?? 0,
+          l: entry?.lunch ?? 0,
+          d: entry?.dinner ?? 0,
+          saving: false,
+          deleting: false,
+          saved: false,
+        };
+      }),
+    [members, dayMeals]
+  );
 
   const [rows, setRows]               = useState(initRows);
   const [presetApplied, setPreset]    = useState(null);
@@ -73,7 +77,7 @@ function DayDetailPanel({ date, members, mealsByDate, onRefresh, onClear }) {
   useEffect(() => {
     setRows(initRows());
     setAllDone(false);
-  }, [date, dayMeals.length, dayMeals.map(m => m._id + (m.breakfast||0) + (m.lunch||0) + (m.dinner||0)).join()]);
+  }, [date, initRows]);
 
   const setRow = (memberId, patch) =>
     setRows(r => r.map(x => x.memberId === memberId ? { ...x, ...patch } : x));
@@ -237,8 +241,12 @@ function DayDetailPanel({ date, members, mealsByDate, onRefresh, onClear }) {
 
 /* ── Bulk Entry Panel (multiple dates) ──────────── */
 function BulkEntryPanel({ selectedDates, members, onSave, onClear }) {
-  const initRows = () =>
-    members.map(m => ({ userId: m._id, name: m.name, checked: true, b: 0, l: 0, d: 0 }));
+  const initRows = useCallback(
+    () => members.map((m) => ({ userId: m._id, name: m.name, checked: true, b: 0, l: 0, d: 0 })),
+    [members]
+  );
+
+  const datesKey = useMemo(() => [...selectedDates].sort().join(','), [selectedDates]);
 
   const [rows, setRows]            = useState(initRows);
   const [header, setHeader]        = useState({ b: 0, l: 0, d: 0 });
@@ -250,7 +258,7 @@ function BulkEntryPanel({ selectedDates, members, onSave, onClear }) {
     setRows(initRows());
     setHeader({ b: 0, l: 0, d: 0 });
     setDone(false);
-  }, [members.length, selectedDates.join(',')]);
+  }, [initRows, datesKey]);
 
   const setRow = (uid, patch) =>
     setRows(r => r.map(x => x.userId === uid ? { ...x, ...patch } : x));
@@ -549,7 +557,7 @@ export function Meals() {
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [mealsRes, membersRes, adjRes] = await Promise.all([
@@ -562,12 +570,12 @@ export function Meals() {
       setAdjustments(adjRes.data.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  };
+  }, [month, year]);
 
   useEffect(() => {
     fetchData();
     setSelected(new Set());
-  }, [month, year]);
+  }, [fetchData]);
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };

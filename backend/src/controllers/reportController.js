@@ -5,32 +5,21 @@ const Meal = require('../models/Meal');
 const BillingEmailLog = require('../models/BillingEmailLog');
 const { sendBillEmail } = require('../services/emailService');
 const { getMonthlySummary, getUserMonthlyBill, getYearlyMealTrend, getExpenseContributions, getUserAdvanceTotal } = require('../services/reportService');
-
-// Helper: repair null-mess users and return mess user IDs.
-//
-// NOTE: We intentionally include archived users here. They may have meals,
-// expenses, or payments in the requested month — those records must still
-// be counted toward the monthly summary, otherwise removing a member would
-// retroactively change everyone else's bill.
-const getMessUserIds = async (messId) => {
-  if (messId) {
-    await User.updateMany(
-      { $or: [{ mess: { $exists: false } }, { mess: null }] },
-      { $set: { mess: messId } }
-    );
-  }
-  return User.find({ mess: messId }).distinct('_id');
-};
+const { getMessUserIds, userBelongsToMess, requireMessId } = require('../utils/messTenant');
 
 // GET /api/reports/monthly-summary?month=M&year=Y
 exports.getMonthlySummary = async (req, res) => {
   try {
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    const userIds = await getMessUserIds(req.user.mess);
+    const userIds = await getMessUserIds(messId);
     const summary = await getMonthlySummary(startDate, endDate, userIds);
     res.json({ success: true, data: { ...summary, month, year } });
   } catch (err) {
@@ -41,12 +30,19 @@ exports.getMonthlySummary = async (req, res) => {
 // GET /api/reports/user-bill/:userId?month=M&year=Y
 exports.getUserBill = async (req, res) => {
   try {
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+    if (!(await userBelongsToMess(messId, req.params.userId))) {
+      return res.status(403).json({ success: false, error: 'এই সদস্যকে আপনার মেসে পাওয়া যায়নি' });
+    }
+
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    const userIds = await getMessUserIds(req.user.mess);
+    const userIds = await getMessUserIds(messId);
     const { mealRate } = await getMonthlySummary(startDate, endDate, userIds);
     const [bill, contribs, payment, user] = await Promise.all([
       getUserMonthlyBill(req.params.userId, startDate, endDate, mealRate),
@@ -73,12 +69,14 @@ exports.getUserBill = async (req, res) => {
 // GET /api/reports/all-bills?month=M&year=Y
 exports.getAllBills = async (req, res) => {
   try {
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
-
-    const messId = req.user.mess;
     const userIds = await getMessUserIds(messId);
 
     // Show bills for: (a) all currently-active members, AND
@@ -128,7 +126,10 @@ exports.getAllBills = async (req, res) => {
 // GET /api/reports/yearly-trend
 exports.getYearlyTrend = async (req, res) => {
   try {
-    const userIds = await getMessUserIds(req.user.mess);
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+    const userIds = await getMessUserIds(messId);
     const trend = await getYearlyMealTrend(userIds);
     res.json({ success: true, data: trend });
   } catch (err) {
@@ -207,7 +208,7 @@ async function dispatchBillsForMess({ messId, month, year, force = false, trigge
   await BillingEmailLog.findOneAndUpdate(
     { mess: messId, month, year },
     { sentAt: new Date(), sentCount: sent, skippedCount: skipped, triggeredBy },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   return { ok: true, sent, skipped };
@@ -265,12 +266,16 @@ exports.cronSendMonthlyBills = async (req, res) => {
 // POST /api/reports/send-monthly-bills  — admin manually triggers for own mess
 exports.adminSendMonthlyBills = async (req, res) => {
   try {
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+
     const month = parseInt(req.body.month) || new Date().getMonth() + 1;
     const year = parseInt(req.body.year) || new Date().getFullYear();
     const force = !!req.body.force;
 
     const result = await dispatchBillsForMess({
-      messId: req.user.mess, month, year, force, triggeredBy: 'manual',
+      messId, month, year, force, triggeredBy: 'manual',
     });
 
     if (!result.ok) return res.status(400).json({ success: false, error: result.error });
@@ -283,12 +288,15 @@ exports.adminSendMonthlyBills = async (req, res) => {
 // GET /api/reports/billing-email-status?month=&year=
 exports.billingEmailStatus = async (req, res) => {
   try {
+    const messId = requireMessId(req);
+    if (!messId)
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
-    const log = await BillingEmailLog.findOne({ mess: req.user.mess, month, year });
+    const log = await BillingEmailLog.findOne({ mess: messId, month, year });
 
     // Show admin how many members have email so they know who'll be reached
-    const messId = req.user.mess;
     const [withEmail, total] = await Promise.all([
       User.countDocuments({ mess: messId, email: { $ne: '' }, isArchived: { $ne: true } }),
       User.countDocuments({ mess: messId, isArchived: { $ne: true } }),

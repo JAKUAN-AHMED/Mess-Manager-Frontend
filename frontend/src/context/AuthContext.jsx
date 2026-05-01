@@ -8,26 +8,23 @@ export function AuthProvider({ children }) {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('token'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      api.get('/auth/me')
-        .then((res) => {
-          const u = res.data.data;
-          setUser(u);
-          localStorage.setItem('user', JSON.stringify(u));
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    if (!token) return;
+    api.get('/auth/me')
+      .then((res) => {
+        const u = res.data.data;
+        setUser(u);
+        localStorage.setItem('user', JSON.stringify(u));
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (phone, password) => {
@@ -66,4 +63,5 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook paired with provider in same module
 export const useAuth = () => useContext(AuthContext);

@@ -21,4 +21,5 @@ export function ThemeProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook paired with provider in same module
 export const useTheme = () => useContext(ThemeContext);

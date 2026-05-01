@@ -20,7 +20,6 @@ const userSchema = new mongoose.Schema({
   mess: { type: mongoose.Schema.Types.ObjectId, ref: 'Mess' },
 }, { timestamps: true });
 
-userSchema.index({ phone: 1 });
 userSchema.index({ mess: 1, isArchived: 1 });
 
 userSchema.pre('save', async function () {

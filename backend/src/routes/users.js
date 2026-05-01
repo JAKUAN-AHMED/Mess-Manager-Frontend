@@ -9,8 +9,10 @@ const {
   regenerateMemberCode,
 } = require('../controllers/userController');
 const { protect, adminOnly } = require('../middlewares/auth');
+const requireMess = require('../middlewares/requireMess');
 
 router.use(protect);
+router.use(requireMess);
 router.get('/', getUsers);
 router.post('/', adminOnly, createUser);
 router.put('/:id', adminOnly, updateUser);

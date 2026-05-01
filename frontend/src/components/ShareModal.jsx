@@ -1,30 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Search, UserPlus, Trash2, Shield, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
-
-const fmt = (n) => parseFloat(Math.abs(n).toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
 export default function ShareModal({ contactId, contactName, onClose }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [sharedUsers, setSharedUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searching, setSearching] = useState(false);
 
-  // Load shared users
-  useEffect(() => {
-    loadSharedUsers();
-  }, [contactId]);
-
-  const loadSharedUsers = async () => {
+  const loadSharedUsers = useCallback(async () => {
     try {
       const res = await api.get(`/ledger/share/${contactId}/users`);
       setSharedUsers(res.data.data || []);
     } catch (err) {
       console.error('Failed to load shared users:', err);
     }
-  };
+  }, [contactId]);
+
+  useEffect(() => {
+    loadSharedUsers();
+  }, [loadSharedUsers]);
 
   // Search users with debounce
   useEffect(() => {

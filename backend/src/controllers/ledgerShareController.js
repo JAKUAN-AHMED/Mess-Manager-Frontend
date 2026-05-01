@@ -19,10 +19,13 @@ exports.shareContact = async (req, res) => {
       return res.status(404).json({ success: false, error: 'যোগাযোগ পাওয়া যায়নি বা আপনার অ্যাক্সেস নেই' });
     }
 
-    // Verify user to share with exists
+    // Verify user to share with exists and is in the same mess (no cross-mess sharing)
     const userToShare = await User.findById(userId);
     if (!userToShare) {
       return res.status(404).json({ success: false, error: 'ব্যবহারকারী পাওয়া যায়নি' });
+    }
+    if (!req.user.mess || !userToShare.mess || userToShare.mess.toString() !== req.user.mess.toString()) {
+      return res.status(400).json({ success: false, error: 'শুধু আপনার মেসের সদস্যদের সাথে শেয়ার করা যাবে' });
     }
 
     // Cannot share with yourself
@@ -138,14 +141,20 @@ exports.searchUsers = async (req, res) => {
       return res.status(400).json({ success: false, error: 'অন্তত ২ অক্ষর লিখুন' });
     }
 
+    if (!req.user.mess) {
+      return res.status(403).json({ success: false, error: 'মেস সংযুক্ত নয়' });
+    }
+
     const users = await User.find({
+      mess: req.user.mess,
+      isArchived: { $ne: true },
       $or: [
         { name: { $regex: query, $options: 'i' } },
         { phone: { $regex: query, $options: 'i' } },
       ],
     })
-    .select('name phone')
-    .limit(10);
+      .select('name phone')
+      .limit(10);
 
     res.json({ success: true, data: users });
   } catch (err) {

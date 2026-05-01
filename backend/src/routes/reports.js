@@ -10,12 +10,14 @@ const {
   billingEmailStatus,
 } = require('../controllers/reportController');
 const { protect, adminOnly } = require('../middlewares/auth');
+const requireMess = require('../middlewares/requireMess');
 
 // Public cron endpoint — protected by CRON_SECRET header (NOT JWT).
 // MUST be declared before `router.use(protect)`.
 router.post('/cron/send-monthly-bills', cronSendMonthlyBills);
 
 router.use(protect);
+router.use(requireMess);
 router.get('/monthly-summary', getMonthlySummary);
 router.get('/all-bills', getAllBills);
 router.get('/yearly-trend', getYearlyTrend);

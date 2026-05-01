@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { useAuth } from '../context/AuthContext';
 import { Utensils, Eye, EyeOff, ShieldCheck, Users, Hash, CheckCircle, Copy } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 function ManagerForm() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { updateCurrentUser } = useAuth();
   const [form, setForm] = useState({ name: '', phone: '', password: '', confirmPassword: '', messName: '' });
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
@@ -31,6 +31,7 @@ function ManagerForm() {
       const { token, ...userData } = res.data.data.user;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
+      updateCurrentUser(userData);
       setDone({ joinCode: res.data.data.mess.joinCode, messName: res.data.data.mess.name });
     } catch (err) {
       setError(err.response?.data?.error || 'নিবন্ধন ব্যর্থ হয়েছে');
@@ -132,6 +133,7 @@ function ManagerForm() {
 
 function MemberForm() {
   const navigate = useNavigate();
+  const { updateCurrentUser } = useAuth();
   const [form, setForm] = useState({ joinCode: '', name: '', phone: '', password: '', confirmPassword: '', roomNumber: '' });
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
@@ -156,6 +158,7 @@ function MemberForm() {
       const { token, ...userData } = res.data.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
+      updateCurrentUser(userData);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'নিবন্ধন ব্যর্থ হয়েছে');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, ChefHat, KeyRound, ShieldCheck } from 'lucide-react';
 
@@ -202,6 +202,13 @@ export function Login() {
               )}
             </div>
           </div>
+
+          <p className="text-center text-sm text-gray-500 mt-5">
+            নতুন মেস খুলতে অ্যাকাউন্ট তৈরি করুন বা জয়েন কোড দিয়ে যোগ দিন{' '}
+            <Link to="/signup" className="text-brand-600 hover:text-brand-700 font-semibold underline-offset-2 hover:underline">
+              নিবন্ধন পেজ
+            </Link>
+          </p>
         </div>
       </div>
     </div>

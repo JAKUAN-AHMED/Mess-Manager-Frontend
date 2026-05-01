@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Banknote, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, X,
@@ -303,7 +303,7 @@ export function Billing() {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  const fetchBills = async () => {
+  const fetchBills = useCallback(async () => {
     setLoading(true);
     try {
       const [billsRes, advRes] = await Promise.all([
@@ -318,17 +318,20 @@ export function Billing() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
 
-  const fetchEmailStatus = async () => {
+  const fetchEmailStatus = useCallback(async () => {
     if (!isAdmin) return;
     try {
       const res = await api.get(`/reports/billing-email-status?month=${month}&year=${year}`);
       setEmailStatus(res.data.data);
     } catch (err) { console.error(err); }
-  };
+  }, [month, year, isAdmin]);
 
-  useEffect(() => { fetchBills(); fetchEmailStatus(); }, [month, year]);
+  useEffect(() => {
+    fetchBills();
+    fetchEmailStatus();
+  }, [fetchBills, fetchEmailStatus]);
 
 
   const handlePay = async (userId, paidAmount, isMessOwesMember) => {

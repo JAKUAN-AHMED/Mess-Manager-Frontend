@@ -125,7 +125,7 @@ exports.updateContact = async (req, res) => {
     const updatedContact = await LedgerContact.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
       { name: name?.trim(), phone, note },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!updatedContact) return res.status(404).json({ success: false, error: 'পাওয়া যায়নি' });
     res.json({ success: true, data: updatedContact });
@@ -247,7 +247,7 @@ exports.updateTransaction = async (req, res) => {
     const txn = await LedgerTransaction.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
       { type, amount: parseFloat(amount), note: note || '', date: date ? new Date(date) : undefined },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!txn) return res.status(404).json({ success: false, error: 'পাওয়া যায়নি' });
     res.json({ success: true, data: txn });

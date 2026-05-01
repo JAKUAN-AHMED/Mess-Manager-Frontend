@@ -511,8 +511,9 @@ function ContactDetail({ contact, onBack, onRefresh, onShare }) {
     try {
       const r = await api.get(`/ledger/contacts/${contact._id}/transactions`);
       setTxns(r.data.data);
-    } catch {}
-    finally { setLoading(false); }
+    } catch {
+      /* ignore load errors; UI stays usable */
+    } finally { setLoading(false); }
   }, [contact._id]);
 
   useEffect(() => { load(); }, [load]);
@@ -646,7 +647,7 @@ function ContactDetail({ contact, onBack, onRefresh, onShare }) {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">লেনদেনের ইতিহাস (পুরনো → নতুন)</p>
           {(() => {
             let running = 0;
-            return txns.map((txn, idx) => {
+            return txns.map((txn) => {
               running += POSITIVE_TYPES.includes(txn.type) ? txn.amount : -txn.amount;
               const m    = TXN_META[txn.type] || TXN_META['gave'];
               const cc   = COLOR_CLASS[m.color];
@@ -709,21 +710,23 @@ export function Ledger() {
   const [contactModal, setContactModal] = useState(null); // null | 'add' | contact obj
   const [shareModal, setShareModal] = useState(null); // null | contact obj
 
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     setLoading(true);
     try {
       const r = await api.get('/ledger/contacts');
-      setContacts(r.data.data);
-      // Keep selected in sync
-      if (selected) {
-        const updated = r.data.data.find(c => c._id === selected._id);
-        if (updated) setSelected(updated);
-      }
-    } catch {}
-    finally { setLoading(false); }
-  };
+      const list = r.data.data;
+      setContacts(list);
+      setSelected((prev) => {
+        if (!prev) return prev;
+        const updated = list.find((c) => c._id === prev._id);
+        return updated || prev;
+      });
+    } catch {
+      /* ignore load errors */
+    } finally { setLoading(false); }
+  }, []);
 
-  useEffect(() => { loadContacts(); }, []);
+  useEffect(() => { loadContacts(); }, [loadContacts]);
 
   const handleSaveContact = async (data, openingBalance) => {
     if (contactModal === 'add') {
