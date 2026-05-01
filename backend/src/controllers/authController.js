@@ -27,6 +27,8 @@ exports.login = async (req, res) => {
     if (!user || !(await user.matchPassword(password)))
       return res.status(401).json({ success: false, error: 'ফোন বা পাসওয়ার্ড ভুল' });
 
+    if (user.isArchived)
+      return res.status(403).json({ success: false, error: 'এই অ্যাকাউন্ট আর্কাইভ করা হয়েছে' });
     if (!user.isActive)
       return res.status(403).json({ success: false, error: 'অ্যাকাউন্ট নিষ্ক্রিয়' });
 
@@ -129,6 +131,8 @@ exports.memberCodeLogin = async (req, res) => {
     if (!user)
       return res.status(401).json({ success: false, error: 'কোডটি সঠিক নয়' });
 
+    if (user.isArchived)
+      return res.status(403).json({ success: false, error: 'এই অ্যাকাউন্ট আর্কাইভ করা হয়েছে' });
     if (!user.isActive)
       return res.status(403).json({ success: false, error: 'অ্যাকাউন্ট নিষ্ক্রিয়' });
 

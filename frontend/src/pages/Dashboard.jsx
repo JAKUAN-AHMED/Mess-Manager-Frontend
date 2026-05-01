@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Utensils, TrendingUp, Users, Copy, RefreshCw, Wallet, ChefHat } from 'lucide-react';
+import { Utensils, TrendingUp, Users, Copy, RefreshCw, Wallet, ChefHat, Sparkles, Sun, Moon, Cloud } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -22,13 +22,17 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const StatCard = ({ label, value, icon: Icon, cardClass, iconColor, iconBg }) => (
-  <div className={`glass-panel ${cardClass} p-4 sm:p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-0.5 transition-transform duration-200`}>
-    <div className="flex justify-between items-start gap-2">
+  <div className={`glass-panel ${cardClass} p-4 sm:p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}>
+    {/* Hover glow */}
+    <div className="absolute -right-12 -top-12 w-28 h-28 rounded-full opacity-0 group-hover:opacity-30 transition-opacity duration-500"
+      style={{ background: `radial-gradient(circle, ${iconColor} 0%, transparent 70%)` }} />
+    <div className="relative flex justify-between items-start gap-2">
       <div className="min-w-0">
         <p className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 sm:mb-2 truncate">{label}</p>
         <h3 className="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight truncate">{value}</h3>
       </div>
-      <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0" style={{ background: iconBg }}>
+      <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300"
+        style={{ background: iconBg, boxShadow: `0 6px 16px ${iconColor}30` }}>
         <Icon size={18} style={{ color: iconColor }} className="sm:hidden" />
         <Icon size={22} style={{ color: iconColor }} className="hidden sm:block" />
       </div>
@@ -72,7 +76,18 @@ export function Dashboard() {
     fetchData();
   }, []);
 
-  const dateStr = now.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = now.toLocaleDateString('bn-BD', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const hour = now.getHours();
+  const greeting = hour < 5
+    ? { text: 'শুভ রাত্রি', Icon: Moon, color: '#4338ca' }
+    : hour < 12
+    ? { text: 'শুভ সকাল', Icon: Sun, color: '#f59e0b' }
+    : hour < 17
+    ? { text: 'শুভ দুপুর', Icon: Sun, color: '#ea580c' }
+    : hour < 20
+    ? { text: 'শুভ সন্ধ্যা', Icon: Cloud, color: '#7c3aed' }
+    : { text: 'শুভ রাত্রি', Icon: Moon, color: '#4338ca' };
+  const GIcon = greeting.Icon;
 
   const handleCopy = () => {
     if (!mess?.joinCode) return;
@@ -96,19 +111,53 @@ export function Dashboard() {
     <div className="space-y-5 sm:space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Welcome header */}
-      <div className="glass-panel rounded-2xl p-5 sm:p-6 overflow-hidden relative"
-        style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%)', border: '1.5px solid #ddd6fe' }}>
-        <div className="absolute right-0 top-0 w-64 h-64 opacity-10" style={{
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 overflow-hidden relative"
+        style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 40%, #e0e7ff 70%, #fef3c7 100%)', border: '1.5px solid #ddd6fe' }}>
+        {/* Decorative blobs */}
+        <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full opacity-25" style={{
           background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
-          transform: 'translate(30%, -30%)'
         }} />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-1.5">
-            <ChefHat size={16} className="text-brand-600" />
-            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">ড্যাশবোর্ড</span>
+        <div className="absolute -left-16 -bottom-20 w-72 h-72 rounded-full opacity-15" style={{
+          background: 'radial-gradient(circle, #f59e0b 0%, transparent 70%)',
+        }} />
+        <div className="absolute right-1/3 top-1/2 w-32 h-32 rounded-full opacity-10" style={{
+          background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)',
+        }} />
+
+        <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#6366f1)' }}>
+                <ChefHat size={14} className="text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em]">ড্যাশবোর্ড</span>
+              <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                style={{ background: greeting.color + '15', borderColor: greeting.color + '40', color: greeting.color }}>
+                <GIcon size={9} /> {greeting.text}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              স্বাগতম, <span className="text-gradient">{user?.name || 'ম্যানেজার'}</span>!
+            </h1>
+            <p className="text-gray-600 mt-1.5 text-xs sm:text-sm flex items-center gap-1.5">
+              <Sparkles size={12} className="text-brand-400" /> {dateStr}
+            </p>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">স্বাগতম, {user?.name || 'ম্যানেজার'}!</h1>
-          <p className="text-gray-500 mt-1 text-xs sm:text-sm">আজ: {dateStr}</p>
+          {/* Decorative emblem */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">এই মাসে</p>
+              <p className="text-3xl font-black text-gradient leading-none mt-1">
+                {loading ? '—' : (summary?.totalMealsCount || 0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">টি মিল হয়েছে</p>
+            </div>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center border"
+              style={{ background: 'rgba(255,255,255,0.7)', borderColor: '#fff', backdropFilter: 'blur(8px)' }}>
+              <Utensils size={28} className="text-brand-500" />
+            </div>
+          </div>
         </div>
       </div>
 
