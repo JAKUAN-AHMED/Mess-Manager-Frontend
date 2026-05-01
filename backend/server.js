@@ -11,6 +11,7 @@ connectDB();
 app.use(cors({
   origin: [
     'https://manager-mess.vercel.app',
+    'https://manager-mess-plum.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000',
   ],
@@ -35,7 +36,8 @@ app.get("/api/health", (req, res) =>
 
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'production') {
+// Only listen when this file is executed directly (not when required by tests / Vercel).
+if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
